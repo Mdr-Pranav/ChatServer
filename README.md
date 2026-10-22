@@ -15,16 +15,57 @@ This is a secure chat application implemented in Python that allows multiple use
 
 ## Requirements
 
-- Python 3.x
-- SSL certificates (`server-cert.pem` and `server-key.pem`) for encrypted communication.
+- Python 3.x (standard library only — no packages to install)
+- OpenSSL, to generate the TLS certificate
+
+## How the encryption works
+
+All traffic between clients and the server runs over **TLS** (Python's `ssl` module):
+
+- The server wraps each accepted socket with `ssl.SSLContext(PROTOCOL_TLS_SERVER)` using `server-cert.pem` / `server-key.pem`.
+- The client uses `ssl.create_default_context()`, trusts `server-cert.pem`, and **verifies the server's hostname** — so a client can't be tricked into talking to an impostor server.
+
+## Setup
+
+1. Generate a self-signed certificate. The client checks the hostname `vishwaas` (set in `client.py`), so the certificate must be issued for that name:
+
+   ```bash
+   openssl req -x509 -newkey rsa:4096 -nodes -days 365 \
+     -keyout server-key.pem -out server-cert.pem \
+     -subj "/CN=vishwaas" -addext "subjectAltName=DNS:vishwaas"
+   ```
+
+   To use a different name, change `server_hostname` in `client.py` and the `CN`/`DNS` values above to match.
+
+2. Keep `server-key.pem` private — it is listed in `.gitignore` and must never be committed. Clients only need `server-cert.pem`.
+
+3. Start the server, then one or more clients (each in its own terminal):
+
+   ```bash
+   python server.py
+   python client.py
+   ```
+
+   The server listens on `127.0.0.1:55555`.
 
 ## Commands
-Client Commands
-/file <filename> <recipient_nickname>: Send a file to another user.
-/users: List all active users on the server.
-/quit: Disconnect from the server.
-Admin Commands (Server-side)
-/kick <nickname>: Kick a user from the server.
-/ban <nickname>: Ban a user from the server. Banned users cannot reconnect.
+
+**Client commands**
+
+- `/file <filename> <recipient_nickname>` — send a file to another user
+- `/users` — list all active users on the server
+- `/quit` — disconnect from the server
+
+**Admin commands (server-side)**
+
+- `/kick <nickname>` — kick a user from the server
+- `/ban <nickname>` — ban a user; banned users cannot reconnect
+
 ## File Transfer
-Users can send files to one another using the /file command. The recipient will receive the file in the Received directory on their local machine.
+
+Users can send files to one another using the `/file` command. The recipient receives the file in the `Received` directory on their machine.
+
+## License
+
+[MIT](LICENSE)
+
